@@ -5,7 +5,6 @@ by Ali Borji and Sikun Lin
 Arxiv link: TBD
 
 
-Stay Tuned!
 
 
 
@@ -31,11 +30,9 @@ Inside `pytorch-image-models`, we have made the following modifications:
 ## Evaluation
 
 
-### CIFAR-{10,100}
+### CIFAR-10
 
 Patch Size p=2, Kernel Size k=5, Depth d=8
-
-
 
 
 | Model Name | Params (M) | FLOPS (M) | CIFAR-10 acc | 
@@ -47,12 +44,31 @@ Patch Size p=2, Kernel Size k=5, Depth d=8
 |SplitMixer-IV 256/8|  0.307 | 79.8 | 94.17 |
 
 
+
+### CIFAR-100
+
+Patch Size p=2, Kernel Size k=5, Depth d=8
+
+
+| Model Name | Params (M) | FLOPS (M) | CIFAR-10 acc | 
+|------------|:-----------:|:----------:|:----------:|
+|ConvMixer-256/8|  0.594 | 152.6 | 94.17 |
+|SplitMixer-I 256/8|  0.276 | 71.8 | 92.25 |
+|SplitMixer-II 256/8|  0.175 | 46.2 | 94.17 |
+|SplitMixer-III 256/8|  0.175 | 79.8 | 94.17 |
+|SplitMixer-IV 256/8|  0.307 | 79.8 | 94.17 |
+
+
+
 ### ImageNet
 
+Stay Tuned!
 
 
 
-\* **Important:** ConvMixer-768/32 here uses ReLU instead of GELU, so you would have to change `convmixer.py` accordingly (we will fix this later).
+
+
+
 
 You can evaluate ConvMixer-1536/20 as follows:
 
@@ -87,17 +103,4 @@ sh distributed_train.sh 10 [/path/to/ImageNet1k]
     --warmup-epochs 0 
     --opt-eps=1e-3 
     --clip-grad 1.0
-```
-
-We also included a ConvMixer-768/32 in timm/models/convmixer.py (though it is simple to add more ConvMixers). We trained that one with the above settings but with 300 epochs instead of 150 epochs.
-
-__**Note:**__ If you are training on CIFAR-10 instead of ImageNet-1k, we recommend setting `--scale 0.75 1.0` as well, since the default value of 0.08 1.0 does not make sense for 32x32 inputs.
-
-The tweetable version of ConvMixer, which requires `from torch.nn import *`:
-
-```
-def ConvMixer(h,d,k,p,n):
- S,C,A=Sequential,Conv2d,lambda x:S(x,GELU(),BatchNorm2d(h))
- R=type('',(S,),{'forward':lambda s,x:s[0](x)+x})
- return S(A(C(3,h,p,p)),*[S(R(A(C(h,h,k,groups=h,padding=k//2))),A(C(h,h,1))) for i in range(d)],AdaptiveAvgPool2d(1),Flatten(),Linear(h,n))
 ```
