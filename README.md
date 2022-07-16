@@ -12,7 +12,7 @@ Stay Tuned!
 ### Code overview
 The most important code is in `convmixer.py`. We trained ConvMixers using the `timm` framework, which we copied from [here](http://github.com/rwightman/pytorch-image-models).
 
-# SplitMixer is integrated into the [`timm` framework itself](https://github.com/rwightman/pytorch-image-models). You can see the PR [here](https://github.com/rwightman/pytorch-image-models/pull/910).
+### SplitMixer is integrated into the [`timm` framework itself](https://github.com/rwightman/pytorch-image-models). You can see the PR [here](https://github.com/rwightman/pytorch-image-models/pull/910).
 
 Inside `pytorch-image-models`, we have made the following modifications: 
 
