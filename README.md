@@ -38,10 +38,10 @@ Patch Size p=2, Kernel Size k=5
 | Model Name | Params (M) | FLOPS (M) | CIFAR-10 acc | 
 |------------|:-----------:|:----------:|:----------:|
 |ConvMixer-256/8|  0.594 | 152.6 | 94.17 |
-|SplitMixer-I 256/8|  0.276 | 71.8 | 92.25 |
-|SplitMixer-II 256/8|  0.175 | 46.2 | 94.17 |
-|SplitMixer-III 256/8|  0.175 | 79.8 | 94.17 |
-|SplitMixer-IV 256/8|  0.307 | 79.8 | 94.17 |
+|SplitMixer-I 256/8|  0.276 | 71.8 | 93.91 |
+|SplitMixer-II 256/8|  0.175 | 46.2 | 92.25 |
+|SplitMixer-III 256/8|  0.175 | 79.8 | 92.52 |
+|SplitMixer-IV 256/8|  0.307 | 79.8 | 93.38 |
 
 
 
@@ -52,8 +52,8 @@ Patch Size p=2, Kernel Size k=5
 
 | Model Name | Params (M) | FLOPS (M) | CIFAR-10 acc | 
 |------------|:-----------:|:----------:|:----------:|
-|ConvMixer-256/8|  0.286 | 68.7 | 72.88 |
 |ConvMixer-256/8|  0.617 | 152.6 | 73.92 |
+|Splitixer-I 256/8|  0.286 | 68.7 | 72.88 |
 |SplitMixer-II 256/8|  0.186 | 43.1 | 70.44 | 
 |SplitMixer-III 256/8|  0.186 | 76.6 | 70.89 |
 |SplitMixer-IV 256/8|  0.318 | 76.6 | 71.75 |
