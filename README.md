@@ -10,22 +10,15 @@ Arxiv link: TBD
 
 
 ### Code overview
-The most important code is in `convmixer.py`. We trained ConvMixers using the `timm` framework, which we copied from [here](http://github.com/rwightman/pytorch-image-models).
+The most important code is in [`splitmixer.py`](https://github.com/aliborji/splitmixer/blob/main/pytorch-image-models/timm/models/splitmixer.py). We trained SplitMixers (on ImageNet) using the `timm` framework, which we copied from [here](http://github.com/rwightman/pytorch-image-models).
 
-### SplitMixer is integrated into the [`timm` framework itself](https://github.com/rwightman/pytorch-image-models). You can see the PR [here](https://github.com/rwightman/pytorch-image-models/pull/910).
+For CIFAR-{10,100} trainings or standalone model definitions, please refer to the [cifar notebook](https://github.com/aliborji/splitmixer/blob/main/splitmixer-cifar.ipynb).
 
 Inside `pytorch-image-models`, we have made the following modifications: 
 
 - Added ConvMixers
-  - added `timm/models/convmixer.py`
+  - added `timm/models/splitmixer.py`
   - modified `timm/models/__init__.py`
-- Added "OneCycle" LR Schedule
-  - added `timm/scheduler/onecycle_lr.py`
-  - modified `timm/scheduler/scheduler.py`
-  - modified `timm/scheduler/scheduler_factory.py`
-  - modified `timm/scheduler/__init__.py`
-  - modified `train.py` (added two lines to support this LR schedule)
-
 
 
 ## Evaluation
@@ -99,7 +92,7 @@ Stay Tuned!
 
 
 
-## Rest!!!
+## Rest!!! (IGNORING THE FOLLOWING FOR NOW)
 
 
 
