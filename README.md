@@ -38,11 +38,11 @@ Patch Size p=2, Kernel Size k=5
 
 | Model Name | Params (M) | FLOPS (M) | Acc | 
 |------------|:-----------:|:----------:|:----------:|
-|ConvMixer-256/8|  0.594 | 152.6 | 94.17 |
-|SplitMixer-I 256/8|  0.276 | 71.8 | 93.91 |
-|SplitMixer-II 256/8|  0.175 | 46.2 | 92.25 |
-|SplitMixer-III 256/8|  0.175 | 79.8 | 92.52 |
-|SplitMixer-IV 256/8|  0.307 | 79.8 | 93.38 |
+|ConvMixer-256/8|  0.60 | 152.6 | 94.17 |
+|SplitMixer-I 256/8|  0.28 | 71.8 | 93.91 |
+|SplitMixer-II 256/8|  0.17 | 46.2 | 92.25 |
+|SplitMixer-III 256/8|  0.17 | 79.8 | 92.52 |
+|SplitMixer-IV 256/8|  0.31 | 79.8 | 93.38 |
 
 
 
@@ -53,11 +53,11 @@ Patch Size p=2, Kernel Size k=5
 
 | Model Name | Params (M) | FLOPS (M) | Acc | 
 |------------|:-----------:|:----------:|:----------:|
-|ConvMixer-256/8|  0.617 | 152.6 | 73.92 |
-|Splitixer-I 256/8|  0.298 | 71.9 | 72.88 |
-|SplitMixer-II 256/8|  0.186 | 46.2 | 70.44 | 
-|SplitMixer-III 256/8|  0.186 | 79.8 | 70.89 |
-|SplitMixer-IV 256/8|  0.318 | 79.8 | 71.75 |
+|ConvMixer-256/8|  0.62 | 152.6 | 73.92 |
+|Splitixer-I 256/8|  0.30 | 71.9 | 72.88 |
+|SplitMixer-II 256/8|  0.19 | 46.2 | 70.44 | 
+|SplitMixer-III 256/8|  0.19 | 79.8 | 70.89 |
+|SplitMixer-IV 256/8|  0.32 | 79.8 | 71.75 |
 
 
 
