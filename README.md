@@ -9,7 +9,8 @@ Arxiv link: TBD
 
 
 
-### Code overview
+## Code overview
+
 The most important code is in [`splitmixer.py`](https://github.com/aliborji/splitmixer/blob/main/pytorch-image-models/timm/models/splitmixer.py). We trained SplitMixers (on ImageNet) using the `timm` framework, which we copied from [here](http://github.com/rwightman/pytorch-image-models).
 
 For CIFAR-{10,100} trainings or standalone model definitions, please refer to the [cifar notebook](https://github.com/aliborji/splitmixer/blob/main/splitmixer-cifar.ipynb).
@@ -89,48 +90,6 @@ Stay Tuned!
 
 
 
-
-
-
-## Rest!!! (IGNORING THE FOLLOWING FOR NOW)
-
-
-
-
-You can evaluate ConvMixer-1536/20 as follows:
-
-```
-python validate.py --model convmixer_1536_20 --b 64 --num-classes 1000 --checkpoint [/path/to/convmixer_1536_20_ks9_p7.pth.tar] [/path/to/ImageNet1k-val]
-```
-
-You should get a `81.37%` accuracy.
-
-### Training
-If you had a node with 10 GPUs, you could train a ConvMixer-1536/20 as follows (these are exactly the settings we used):
-
-```
-sh distributed_train.sh 10 [/path/to/ImageNet1k] 
-    --train-split [your_train_dir] 
-    --val-split [your_val_dir] 
-    --model convmixer_1536_20 
-    -b 64 
-    -j 10 
-    --opt adamw 
-    --epochs 150 
-    --sched onecycle 
-    --amp 
-    --input-size 3 224 224
-    --lr 0.01 
-    --aa rand-m9-mstd0.5-inc1 
-    --cutmix 0.5 
-    --mixup 0.5 
-    --reprob 0.25 
-    --remode pixel 
-    --num-classes 1000 
-    --warmup-epochs 0 
-    --opt-eps=1e-3 
-    --clip-grad 1.0
-```
 
 
 ## Citation
