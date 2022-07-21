@@ -36,7 +36,7 @@ Inside `pytorch-image-models`, we have made the following modifications:
 Patch Size p=2, Kernel Size k=5
 
 
-| Model Name | Params (M) | FLOPS (M) | CIFAR-10 acc | 
+| Model Name | Params (M) | FLOPS (M) | Acc | 
 |------------|:-----------:|:----------:|:----------:|
 |ConvMixer-256/8|  0.594 | 152.6 | 94.17 |
 |SplitMixer-I 256/8|  0.276 | 71.8 | 93.91 |
@@ -51,7 +51,7 @@ Patch Size p=2, Kernel Size k=5
 Patch Size p=2, Kernel Size k=5
 
 
-| Model Name | Params (M) | FLOPS (M) | CIFAR-10 acc | 
+| Model Name | Params (M) | FLOPS (M) | Acc | 
 |------------|:-----------:|:----------:|:----------:|
 |ConvMixer-256/8|  0.617 | 152.6 | 73.92 |
 |Splitixer-I 256/8|  0.298 | 71.8 | 72.88 |
@@ -61,12 +61,45 @@ Patch Size p=2, Kernel Size k=5
 
 
 
+### Flowers102
+
+Patch Size p=7, Kernel Size k=7
+
+| Model Name | Params (M) | FLOPS (M) | Acc | 
+|------------|:-----------:|:----------:|:----------:|
+|ConvMixer-256/8|   0.70  |696 | 60.47 |
+|Splitixer-I 256/8| 0.34 |331 | 62.03|
+|SplitMixer-II 256/8|  0.24 | 229 | 59.33 |
+|SplitMixer-III 256/8|  0.24 | 363 | 59.00 |
+|SplitMixer-IV 256/8|   0.37 | 363 | 61.51 |
+
+
+
+### Foods101
+
+Patch Size p=7, Kernel Size k=7
+
+
+| Model Name | Params (M) | FLOPS (M) | Acc | 
+|------------|:-----------:|:----------:|:----------:|
+|ConvMixer-256/8|   0.70   | 696  |  74.59 | 
+|Splitixer-I 256/8|  0.34  |  331  |  73.56  | 
+|SplitMixer-II 256/8 | 0.24  |  229  |  71.74   | 
+|SplitMixer-III 256/8|  0.24  |  363  |  72.78  | 
+|SplitMixer-IV 256/8|   0.37  |  363  |  72.92  | 
+
+
+
 ### ImageNet
 
 Stay Tuned!
 
 
 
+
+
+
+## Rest!!!
 
 
 
