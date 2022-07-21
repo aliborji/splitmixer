@@ -1,7 +1,7 @@
 # SplitMixer: Fat Trimmed From MLP-like Models
 PyTorch implementation of the SplitMixer MLP model for visual recognition
 
-by Ali Borji and Sikun Lin 
+by [Ali Borji](https://github.com/aliborji) and [Sikun Lin](https://github.com/sklin93)
 
 Arxiv link: TBD
 
