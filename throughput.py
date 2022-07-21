@@ -3,7 +3,7 @@ import torch
 import sys
 sys.path.append('./pytorch-image-models/')
 from timm.models.convmixer import ConvMixer
-from timm.models.splitmixer import SplitMixerI, SplitMixerII, SplitMixerIII, SplitMixerIV
+from timm.models.splitmixer import SplitMixer
 
 device = 'cuda'
 
@@ -19,18 +19,22 @@ III_n_part = [2, 4, 8]
 IV_n_part = [2, 3, 4, 5]
 
 labels = ['convmixer']
-models = [ConvMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes)]
+models = [ConvMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, num_classes=num_classes)]
 
-models += [SplitMixerI(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes, ratio=r) for r in I_ratios]
+models += [SplitMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, num_classes=num_classes,
+                      ratio=r, mixer_setting='I') for r in I_ratios]
 labels += [f'splitmixerI-{r}' for r in I_ratios]
 
-models += [SplitMixerII(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes, n_part=_p) for _p in II_n_part]
+models += [SplitMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, num_classes=num_classes,
+                        num_segments=_p, mixer_setting='II') for _p in II_n_part]
 labels += [f'splitmixerII-{_p}' for _p in II_n_part]
 
-models += [SplitMixerIII(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes, n_part=_p) for _p in III_n_part]
+models += [SplitMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, num_classes=num_classes,
+                         num_segments=_p, mixer_setting='III') for _p in III_n_part]
 labels += [f'splitmixerIII-{_p}' for _p in III_n_part]
 
-models += [SplitMixerIV(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes, n_part=_p) for _p in IV_n_part]
+models += [SplitMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, num_classes=num_classes,
+                        num_segments=_p, mixer_setting='IV') for _p in IV_n_part]
 labels += [f'splitmixerIV-{_p}' for _p in IV_n_part]
 
 batch_size = 64

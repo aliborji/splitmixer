@@ -4,6 +4,8 @@ import os
 import time
 import numpy as np
 
+import torch
+import torch.nn as nn
 import torch.optim as optim
 import torchvision
 from torchvision import datasets, models, transforms
@@ -11,7 +13,7 @@ from torchvision import datasets, models, transforms
 import sys
 sys.path.append('./pytorch-image-models/')
 from timm.models.convmixer import ConvMixer
-from timm.models.splitmixer import SplitMixerI, SplitMixerII, SplitMixerIII, SplitMixerIV
+from timm.models.splitmixer import SplitMixer
 
 device = 'cuda'
 
@@ -77,16 +79,15 @@ testset = torchvision.datasets.Food101(root='./data', split='test',
 testloader = torch.utils.data.DataLoader(testset, batch_size=args_batch_size,
                                          shuffle=False, num_workers=args_workers)
 
-# model = ConvMixer(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes).to(device)
-model = SplitMixerI(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes, ratio=2./3.).to(device)
-# model = SplitMixerIV(args_hdim, args_depth, patch_size=args_psize, kernel_size=args_conv_ks, n_classes=num_classes, n_part=2).to(device)
 
+model = SplitMixer(args_hdim, args_depth, kernel_size=args_conv_ks, patch_size=args_psize,
+                   num_classes=num_classes, ratio=2./3., mixer_setting='I').to(device)
 
 model = nn.DataParallel(model).cuda()
 print(model)
 
 
-lr_schedule = lambda t: np.interp([t], [0, args_epochs*2//5, args_epochs*4//5, args_epochs], 
+lr_schedule = lambda t: np.interp([t], [0, args_epochs*2//5, args_epochs*4//5, args_epochs],
                                   [0, args_lr_max, args_lr_max/20.0, 0])[0]
 
 opt = optim.AdamW(model.parameters(), lr=args_lr_max, weight_decay=args_wd)

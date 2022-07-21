@@ -1,11 +1,19 @@
+""" SplitMixer
+original github: https://github.com/aliborji/splitmixer
+
+"""
+
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models.registry import register_model
 from .helpers import build_model_with_cfg, checkpoint_seq
+from .layers import SelectAdaptivePool2d
 
 import torch
 import torch.nn as nn
+from torch.nn.modules.container import ModuleList
 
 
+# --------------------------- Building Blocks ----------------------------------
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
@@ -15,11 +23,12 @@ class Residual(nn.Module):
         return self.fn(x) + x
 
 
-class PartialChannelMixer(nn.Module):
-    def __init__(self, dim, is_odd, ratio):
+class ChannelMixerI(nn.Module):
+    ''' Partial overlap; In each block only one segment is convolved. '''
+    def __init__(self, hdim, is_odd=0, ratio=2/3, **kwargs):
         super().__init__()
-        self.dim = dim
-        self.partial_c = int(dim *ratio)
+        self.hdim = hdim
+        self.partial_c = int(hdim *ratio)
         self.mixer = nn.Conv2d(self.partial_c, self.partial_c, kernel_size=1)
         self.is_odd = is_odd
     
@@ -28,318 +37,210 @@ class PartialChannelMixer(nn.Module):
             idx = self.partial_c
             return torch.cat((self.mixer(x[:, :idx]), x[:, idx:]), dim=1)
         else:
-            idx = self.dim - self.partial_c
+            idx = self.hdim - self.partial_c
             return torch.cat((x[:, :idx], self.mixer(x[:, idx:])), dim=1)
 
 
-def SplitMixerI(dim, depth, kernel_size=5, patch_size=2, n_classes=10,
-                ratio=2/3, img_size=32, **kwargs):
-    ''' Partial overlap model, one segment per iteration '''
-    n_patch = img_size // patch_size
-    return nn.Sequential(
-        nn.Conv2d(3, dim, kernel_size=patch_size, stride=patch_size),
-        nn.GELU(),
-        nn.BatchNorm2d(dim),
-        # nn.LayerNorm([dim, n_patch, n_patch]),
-        *[nn.Sequential(
-                Residual(nn.Sequential(
-                    nn.Conv2d(dim, dim, (1,kernel_size), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim),
-                    # nn.LayerNorm([dim, n_patch, n_patch]),
-                    nn.Conv2d(dim, dim, (kernel_size,1), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim),
-                    # nn.LayerNorm([dim, n_patch, n_patch]),
-                )),
-                PartialChannelMixer(dim, i % 2, ratio),
-                nn.GELU(),
-                nn.BatchNorm2d(dim),
-                # nn.LayerNorm([dim, n_patch, n_patch]),
-        ) for i in range(depth)],
-        nn.AdaptiveAvgPool2d((1,1)),
-        nn.Flatten(),
-        nn.Linear(dim, n_classes)
-    )
-
-def SplitMixerI_channel_only(dim, depth, kernel_size=5, patch_size=2,
-                             n_classes=10, ratio=2/3, **kwargs):
-    return nn.Sequential(
-        nn.Conv2d(3, dim, kernel_size=patch_size, stride=patch_size),
-        nn.GELU(),
-        nn.BatchNorm2d(dim),
-        *[nn.Sequential(
-                Residual(nn.Sequential(
-                    nn.Conv2d(dim, dim, (kernel_size,kernel_size), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim),
-                )),
-                PartialChannelMixer(dim, i % 2, ratio),
-                nn.GELU(),
-                nn.BatchNorm2d(dim),
-        ) for i in range(depth)],
-        nn.AdaptiveAvgPool2d((1,1)),
-        nn.Flatten(),
-        nn.Linear(dim, n_classes)
-    )
-
-# ------------------------------------------------------------------------------
-
-class ChannelBin(nn.Module):
-    def __init__(self, dim, remainder, n_part=3):
+class ChannelMixerII(nn.Module):
+    ''' No overlap; In each block only one segment is convolved. '''
+    def __init__(self, hdim, remainder=0, num_segments=3, **kwargs):
         super().__init__()
-        self.dim = dim
+        self.hdim = hdim
         self.remainder = remainder
-        self.n_part = n_part
-        self.bin_dim = int(dim / n_part)
-        self.c = dim - self.bin_dim * (n_part - 1) if (
-            remainder == n_part - 1) else self.bin_dim
+        self.num_segments = num_segments
+        self.bin_dim = int(hdim / num_segments)
+        self.c = hdim - self.bin_dim * (num_segments - 1) if (
+            remainder == num_segments - 1) else self.bin_dim
         self.mixer = nn.Conv2d(self.c, self.c, kernel_size=1)
     
     def forward(self, x):
         start = self.remainder * self.bin_dim
-        end = self.dim if (self.remainder == self.n_part - 1) else (
+        end = self.hdim if (self.remainder == self.num_segments - 1) else (
             (self.remainder + 1) * self.bin_dim)
         return torch.cat((x[:, :start], self.mixer(x[:, start : end]),
                           x[:, end:]), dim=1)
 
 
-def SplitMixerII(dim, depth, kernel_size=5, patch_size=2, n_classes=10,
-                 n_part=3, **kwargs):
-    ''' Non overlapping; In each iteration only one segment is convolved '''
-    return nn.Sequential(
-        nn.Conv2d(3, dim, kernel_size=patch_size, stride=patch_size),
-        nn.GELU(),
-        nn.BatchNorm2d(dim),
-        *[nn.Sequential(
-                Residual(nn.Sequential(
-                    nn.Conv2d(dim, dim, (1,kernel_size), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim),
-                    nn.Conv2d(dim, dim, (kernel_size,1), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim)
-                )),
-                ChannelBin(dim, i % n_part, n_part),
-                nn.GELU(),
-                nn.BatchNorm2d(dim),
-        ) for i in range(depth)],
-        nn.AdaptiveAvgPool2d((1,1)),
-        nn.Flatten(),
-        nn.Linear(dim, n_classes)
-    )
-
-#-------------------------------------------------------------------------------
-
-class ChannelPatch(nn.Module):
-    ''' Non-overlap; Same layer '''
-    def __init__(self, dim, n_part):
+class ChannelMixerIII(nn.Module):
+    ''' No overlap; In each block all segments are convolved;
+        Parameters are shared across segments. '''
+    def __init__(self, hdim, num_segments=3, **kwargs):
         super().__init__()
-        assert dim % n_part == 0, (
-            f'dim {dim} need to be divisible by n_part {n_part}')
-        self.dim = dim
-        self.n_part = n_part
-        self.c = dim // n_part
+        assert hdim % num_segments == 0, (
+            f'hdim {hdim} need to be divisible by num_segments {num_segments}')
+        self.hdim = hdim
+        self.num_segments = num_segments
+        self.c = hdim // num_segments
         self.mixer = nn.Conv2d(self.c, self.c, kernel_size=1)
     
     def forward(self, x):
         c = self.c
-        x = [self.mixer(x[:, c * i : c * (i + 1)]) for i in range(self.n_part)]
+        x = [self.mixer(x[:, c * i : c * (i + 1)]) for i in range(self.num_segments)]
         return torch.cat(x, dim=1)
 
 
-def SplitMixerIII(dim, depth, kernel_size=5, patch_size=2, n_classes=10,
-                  n_part=3, **kwargs):
-    ''' Non overlapping; In each iteration all segments are convolved;
-        parameteres are shared across segments '''
-    return nn.Sequential(
-        nn.Conv2d(3, dim, kernel_size=patch_size, stride=patch_size),
-        nn.GELU(),
-        nn.BatchNorm2d(dim),
-        *[nn.Sequential(
-                Residual(nn.Sequential(
-                    nn.Conv2d(dim, dim, (1,kernel_size), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim),
-                    nn.Conv2d(dim, dim, (kernel_size,1), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim)
-                )),
-                ChannelPatch(dim, n_part),
-                nn.GELU(),
-                nn.BatchNorm2d(dim),
-        ) for i in range(depth)],
-        nn.AdaptiveAvgPool2d((1,1)),
-        nn.Flatten(),
-        nn.Linear(dim, n_classes)
-    )
-
-#-------------------------------------------------------------------------------
-
-class ChannelPatchUnshared(nn.Module):
-    ''' Non-overlap; Same layer, multiple convs '''
-    def __init__(self, dim, n_part):
+class ChannelMixerIV(nn.Module):
+    ''' No overlap; In each block all segments are convolved;
+        No parameter sharing across segments. '''
+    def __init__(self, hdim, num_segments=3, **kwargs):
         super().__init__()
-        self.dim = dim
-        self.n_part = n_part
-        c = dim // n_part
-        last_c = dim - c * (n_part - 1)
+        self.hdim = hdim
+        self.num_segments = num_segments
+        c = hdim // num_segments
+        last_c = hdim - c * (num_segments - 1)
         self.mixer = nn.ModuleList(
-            [nn.Conv2d(c, c, kernel_size=1) for _ in range(n_part - 1)] + (
-                [nn.Conv2d(last_c, last_c, kernel_size=1)]))
+            [nn.Conv2d(c, c, kernel_size=1) for _ in range(num_segments - 1)
+            ] + ([nn.Conv2d(last_c, last_c, kernel_size=1)]))
         self.c, self.last_c = c, last_c
    
     def forward(self, x):
         c, last_c = self.c, self.last_c
         x = [self.mixer[i](x[:, c * i : c * (i + 1)]) for i in (
-            range(self.n_part - 1))] + [self.mixer[-1](x[:, -last_c:])]
+            range(self.num_segments - 1))] + [self.mixer[-1](x[:, -last_c:])]
         return torch.cat(x, dim=1)
 
 
-def SplitMixerIV(dim, depth, kernel_size=5, patch_size=2, n_classes=10,
-                 n_part=3, **kwargs):
-    ''' Non overlapping; In each iteration all segments are convolved;
-        no parameter sharing across segments '''
-    return nn.Sequential(
-        nn.Conv2d(3, dim, kernel_size=patch_size, stride=patch_size),
-        nn.GELU(),
-        nn.BatchNorm2d(dim),
-        *[nn.Sequential(
-                Residual(nn.Sequential(
-                    nn.Conv2d(dim, dim, (1,kernel_size), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim),
-                    nn.Conv2d(dim, dim, (kernel_size,1), groups=dim,
-                              padding="same"),
-                    nn.GELU(),
-                    nn.BatchNorm2d(dim)
-                )),
-                ChannelPatchUnshared(dim, n_part),
-                nn.GELU(),
-                nn.BatchNorm2d(dim),
-        ) for i in range(depth)],
-        nn.AdaptiveAvgPool2d((1,1)),
-        nn.Flatten(),
-        nn.Linear(dim, n_classes)
-    )
+class ChannelMixerV(nn.Module):
+    ''' Partial overlap; In each block all segments are convolved;
+        No parameter sharing across segments. '''
+    def __init__(self, hdim, ratio=2/3, **kwargs):
+        super().__init__()
+        self.hdim = hdim
+        self.c = int(hdim *ratio)
+        self.mixer1 = nn.Conv2d(self.c, self.c, kernel_size=1)
+        self.mixer2 = nn.Conv2d(self.c, self.c, kernel_size=1)
+
+    def forward(self, x):
+        c, hdim = self.c, self.hdim
+        x = torch.cat((self.mixer1(x[:, :c]), x[:, c:]), dim=1)
+        return torch.cat((x[:, :(hdim - c)], self.mixer2(x[:, (hdim - c):])), dim=1)
+
+# ------------------------------ Main Model ------------------------------------
+
+class SplitMixer(nn.Module):
+    def __init__(self, hdim, num_blocks, kernel_size=5, patch_size=2,
+                 num_classes=10, ratio=2/3, num_segments=2, img_size=32,
+                 mixer_setting='I', spatial_trick=True, channel_trick=True,
+                 act_layer=nn.GELU, global_pool='avg', **kwargs):
+        super().__init__()
+        self.num_classes = num_classes
+        self.num_features = hdim
+        self.grad_checkpointing = False
+
+        self.patch_emb = nn.Sequential(
+            nn.Conv2d(3, hdim, kernel_size=patch_size, stride=patch_size),
+            act_layer(),
+            nn.BatchNorm2d(hdim),
+            )
+
+        self.mixer_blocks = ModuleList()
+
+        for i in range(num_blocks):
+            spatial_mixer = Residual(nn.Sequential(
+                nn.Conv2d(hdim, hdim, (1, kernel_size), groups=hdim, padding="same"),
+                act_layer(),
+                nn.BatchNorm2d(hdim),
+                nn.Conv2d(hdim, hdim, (kernel_size, 1), groups=hdim, padding="same"),
+                act_layer(),
+                nn.BatchNorm2d(hdim),
+                )) if spatial_trick else Residual(nn.Sequential(
+                    nn.Conv2d(hdim, hdim, kernel_size, groups=hdim, padding="same"),
+                    act_layer(),
+                    nn.BatchNorm2d(hdim),
+                    ))
+
+            self.mixer_blocks.append(spatial_mixer)
+
+            if channel_trick:
+                mixer_args = {
+                    'hdim': hdim, 'is_odd': i % 2, 'ratio': ratio,
+                    'remainder': i % num_segments, 'num_segments': num_segments,
+                    }
+                channel_mixer = nn.Sequential(
+                    globals()[f'ChannelMixer{mixer_setting}'](**mixer_args),
+                    act_layer(),
+                    nn.BatchNorm2d(hdim),
+                    )
+            else:
+                channel_mixer = nn.Sequential(
+                    nn.Conv2d(hdim, hdim, kernel_size=1),
+                    act_layer(),
+                    nn.BatchNorm2d(hdim)
+                    )
+            self.mixer_blocks.append(channel_mixer)
+
+        self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
+        self.head = nn.Linear(hdim, num_classes) if num_classes > 0 else nn.Identity()
+
+    @torch.jit.ignore
+    def group_matcher(self, coarse=False):
+        matcher = dict(stem=r'^patch_emb', blocks=r'^mixer_blocks\.(\d+)')
+        return matcher
+
+    @torch.jit.ignore
+    def set_grad_checkpointing(self, enable=True):
+        self.grad_checkpointing = enable
+
+    @torch.jit.ignore
+    def get_classifier(self):
+        return self.head
+
+    def reset_classifier(self, num_classes, global_pool=None):
+        self.num_classes = num_classes
+        if global_pool is not None:
+            self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
+        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+
+    def forward_features(self, x):
+        x = self.patch_emb(x)
+        if self.grad_checkpointing and not torch.jit.is_scripting():
+            for mixer_block in self.mixer_blocks:
+                x = checkpoint_seq(mixer_block, x)
+        else:
+            for mixer_block in self.mixer_blocks:
+                x = mixer_block(x)
+        return x
+
+    def forward_head(self, x, pre_logits: bool = False):
+        x = self.pooling(x)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x):
+        x = self.forward_features(x)
+        x = self.forward_head(x)
+        return x
 
 #-------------------------------------------------------------------------------
 
-# CIFAR-10
-_cfg_cifar10 = {
-    'url': '',
-    'num_classes': 10, 'input_size': (3, 32, 32), 'pool_size': None,
-    'mean': (0.4914, 0.4822, 0.4465), 'std': (0.2023, 0.1994, 0.2010),
-    'classifier': 'head'
-}
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
+        'crop_pct': .96, 'interpolation': 'bicubic',
+        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
+        'classifier': 'head', 'first_conv': 'patch_emb.0', **kwargs
+        }
+
+default_cfgs = {'splitmixer_1536_20': _cfg(), 'splitmixer_768_32': _cfg(),}
+
+
+def _create_splitmixer(variant, pretrained=False, **kwargs):
+    return build_model_with_cfg(SplitMixer, variant, pretrained, **kwargs)
+
 
 @register_model
-def splitmixeri_256_8_cifar10(pretrained=False, **kwargs):
-    model = SplitMixerI(256, 8, kernel_size=5, patch_size=2, n_classes=10, ratio=2/3)
-    model.default_cfg = _cfg_cifar10
-    return model
+def splitmixer_1536_20(pretrained=False, **kwargs):
+    model_args = dict(hdim=1536, num_blocks=20, kernel_size=9, patch_size=7, **kwargs)
+    return _create_splitmixer('splitmixer_1536_20', pretrained, **model_args)
+
 
 @register_model
-def splitmixerii_256_8_cifar10(pretrained=False, **kwargs):
-    model = SplitMixerII(256, 8, kernel_size=5, patch_size=2, n_classes=10, n_part=3)
-    model.default_cfg = _cfg_cifar10
-    return model
+def splitmixer_768_32(pretrained=False, **kwargs):
+    model_args = dict(hdim=768, num_blocks=32, kernel_size=7, patch_size=7, act_layer=nn.ReLU, **kwargs)
+    return _create_splitmixer('splitmixer_768_32', pretrained, **model_args)
 
-
-# CIFAR-100
-_cfg_cifar100 = {
-    'url': '',
-    'num_classes': 100, 'input_size': (3, 32, 32), 'pool_size': None,
-    'mean': (0.5071, 0.4867, 0.4408), 'std': (0.2675, 0.2565, 0.2761),
-    'classifier': 'head'
-}
 
 @register_model
-def splitmixeri_256_8_cifar100(pretrained=False, **kwargs):
-    model = SplitMixerI(256, 8, kernel_size=5, patch_size=2, n_classes=100, ratio=2/3)
-    model.default_cfg = _cfg_cifar100
-    return model
-
-@register_model
-def splitmixerii_256_8_cifar100(pretrained=False, **kwargs):
-    model = SplitMixerII(256, 8, kernel_size=5, patch_size=2, n_classes=100, n_part=3)
-    model.default_cfg = _cfg_cifar100
-    return model
-
-
-# ImageNet
-_cfg = {
-    'url': '',
-    'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-    'crop_pct': .96, 'interpolation': 'bicubic',
-    'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-    'classifier': 'head'
-}
-
-@register_model
-def splitmixeri_1536_20(pretrained=False, **kwargs):
-    model = SplitMixerI(1536, 20, kernel_size=9, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeri_768_32(pretrained=False, **kwargs):
-    model = SplitMixerI(768, 32, kernel_size=7, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeri_channel_only_1536_20(pretrained=False, **kwargs):
-    model = SplitMixerI_channel_only(1536, 20, kernel_size=9, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeri_channel_only_768_32(pretrained=False, **kwargs):
-    model = SplitMixerI_channel_only(768, 32, kernel_size=7, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixerii_1536_20(pretrained=False, **kwargs):
-    model = SplitMixerII(1536, 20, kernel_size=9, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixerii_768_32(pretrained=False, **kwargs):
-    model = SplitMixerII(768, 32, kernel_size=7, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeriii_1536_20(pretrained=False, **kwargs):
-    model = SplitMixerIII(1536, 20, kernel_size=9, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeriii_768_32(pretrained=False, **kwargs):
-    model = SplitMixerIII(768, 32, kernel_size=7, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeriv_1536_20(pretrained=False, **kwargs):
-    model = SplitMixerIV(1536, 20, kernel_size=9, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
-
-@register_model
-def splitmixeriv_768_32(pretrained=False, **kwargs):
-    model = SplitMixerIV(768, 32, kernel_size=7, patch_size=7, n_classes=1000, **kwargs)
-    model.default_cfg = _cfg
-    return model
+def splitmixer_1024_20_ks9_p14(pretrained=False, **kwargs):
+    model_args = dict(hdim=1024, num_blocks=20, kernel_size=9, patch_size=14, **kwargs)
+    return _create_splitmixer('splitmixer_1024_20_ks9_p14', pretrained, **model_args)
