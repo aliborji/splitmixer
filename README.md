@@ -138,3 +138,18 @@ sh distributed_train.sh 10 [/path/to/ImageNet1k]
     --opt-eps=1e-3 
     --clip-grad 1.0
 ```
+
+
+## Citation
+
+If you use this code in your research, please cite this project.
+
+```
+@inproceedings{borji2022SplitMixer,
+title={SplitMixer: Fat Trimmed From MLP-like Models},
+author={Ali Borji and Sikun Lin},
+booktitle={IArxiv},
+year={2022},
+url={https://openreview.net/forum?id=H1ebhnEYDH}
+}```
+
