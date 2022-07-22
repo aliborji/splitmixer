@@ -1,9 +1,9 @@
-# SplitMixer: Fat Trimmed From MLP-like Models
+# SplitMixer: Fat Trimmed From MLP-like Models ([Arxiv Link](https://arxiv.org/pdf/2207.10255.pdf))
 PyTorch implementation of the SplitMixer MLP model for visual recognition
 
 by [Ali Borji](https://github.com/aliborji) and [Sikun Lin](https://github.com/sklin93)
 
-Arxiv link: TBD
+
 
 
 
@@ -100,8 +100,8 @@ If you use this code in your research, please cite this project.
 @inproceedings{borji2022SplitMixer,
 title={SplitMixer: Fat Trimmed From MLP-like Models},
 author={Ali Borji and Sikun Lin},
-booktitle={IArxiv},
+booktitle={Arxiv},
 year={2022},
-url={https://openreview.net/forum?id=H1ebhnEYDH}
+url={https://arxiv.org/pdf/2207.10255.pdf}
 }
 
