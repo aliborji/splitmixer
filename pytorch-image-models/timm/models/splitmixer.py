@@ -1,5 +1,6 @@
 """ SplitMixer
 original github: https://github.com/aliborji/splitmixer
+Paper: https://arxiv.org/abs/2207.10255
 
 """
 
